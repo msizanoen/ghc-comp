@@ -1,0 +1,42 @@
+image: debian:unstable
+
+variables:
+  DOCKER_HOST: tcp://localhost:2375
+
+stages:
+  - buildstage1
+  - buildstage2
+    
+build stage1:
+  stage: buildstage1
+  script:
+    - ./install.sh
+    - mkdir nro-build
+    - cd nro-build
+    - wget -q https://downloads.haskell.org/~ghc/8.6.5/ghc-8.6.5-src.tar.xz
+    - tar xf ghc-8.6.5-src.tar.xz
+    - cd ghc-8.6.5
+    - cp ../../build.mk mk/build.mk
+    - LD=ld.lld ./configure --target=arm-linux-gnueabihf --prefix=/opt/nro-ghc
+    - make -j16 -f ghc.mk phase=0 phase_0_builds
+    - make -j16 -f ghc.mk phase=1 phase_1_builds
+  artifacts:
+    paths:
+      - nro-build
+    expire_in: 1 week
+
+build stage2:
+  stage: buildstage2
+  script:
+    - ./install.sh
+    - cd nro-build/ghc-8.6.5
+    - make -j16
+    - make install
+    - REPO=$PWD/../..
+    - cd /opt/nro-ghc
+    - zip -r $REPO/nro-ghc.zip .
+    - cd $REPO
+  artifacts:
+    paths:
+      - nro-ghc.zip
+    expire_in: 1 week
